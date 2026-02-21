@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuietDark - Noise and Light Pollution Monitoring  </title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css">
+
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #1e1e2e;
+            color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        var isDarkMode = localStorage.getItem('mapTheme') === 'dark';
+        var darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: ' OpenStreetMap contributors & CARTO'
+        });
+
+        var lightTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: ' OpenStreetMap contributors'
+        });
+
+        var map = L.map('map', { zoomControl: false }).setView([48.7364136, 21.4392562], 12);
+        (isDarkMode ? darkTile : lightTile).addTo(map);
+
+        var markerCluster = L.markerClusterGroup();
+        map.addLayer(markerCluster);
+
+        function updateMapFilter() {
+            document.getElementById('map').style.filter = isDarkMode ? 'invert(90%) hue-rotate(170deg) contrast(80%)' : 'none';
+        }
+        updateMapFilter();
+
+        var markerDropdown = L.control({ position: 'topright' });
+        markerDropdown.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+            div.innerHTML = '<select id="markerDropdown" onchange="moveToMarker()" style="padding:5px;"><option value="">Select a marker</option></select>';
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        };
+             markerDropdown.addTo(map);
+
+        var themeToggle = L.control({ position: 'topright' });
+        themeToggle.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+            div.innerHTML = '<button id="themeToggleBtn" onclick="toggleMapTheme()" style="padding:5px;">Toggle Dark Mode</button>';
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        };
+        themeToggle.addTo(map);
+
+        function toggleMapTheme() {
+            if (isDarkMode) {
+                map.removeLayer(darkTile);
+                lightTile.addTo(map);
+                localStorage.setItem('mapTheme', 'light');
+                document.getElementById('themeToggleBtn').innerText = 'Toggle Dark Mode';
+            } else {
+                map.removeLayer(lightTile);
+                darkTile.addTo(map);
+                localStorage.setItem('mapTheme', 'dark');
+                document.getElementById('themeToggleBtn').innerText = 'Toggle Light Mode';
+            }
+            isDarkMode = !isDarkMode;
+            updateMapFilter();
+        }
+        
+        var zoomControls = L.control.zoom({ position: 'topright' });
+        zoomControls.addTo(map);
+
+        function getColor(lightIntensity) {
+            if (lightIntensity > 800) return "yellow";
+            if (lightIntensity > 500) return "orange";
+            if (lightIntensity > 200) return "red";
+            return "blue";
+        }
+
+        function createMarker(marker) {
+            fetch('/data/' + marker.id)
+                .then(response => response.json())
+                .then(data => {
+                    let lightIntensity = Number(data.current_light || 0);
+                    let color = getColor(lightIntensity);
+                    
+                    var markerIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="width:25px;height:25px;background:${color};border-radius:50%;border:2px solid white;"></div>`,
+                        iconSize: [25, 25],
+                    });
+                    
+                    var markerObj = L.marker([marker.lat, marker.lon], { icon: markerIcon });
+                    markerCluster.addLayer(markerObj);
+
+                    var popupContent = `
+                        <b>${marker.name}</b><br>
+                        &#x2600;&#xFE0F; Light Intensity: <b>${lightIntensity} lux</b><br>
+                        &#x1F4E2; Loudness: <b>${data.current_loudness || 0} dB</b><br><br>
+                        <a href="/graph/${marker.id}">
+                            <button class="popup-btn">&#x1F4CA; View Graph</button>
+                        </a>
+                    `;
+                    
+                    var popup = L.popup().setContent(popupContent);
+                    markerObj.bindPopup(popup);
+                    markerObj.on('click', function() {
+                        markerObj.openPopup();
+                    });
+
+                    document.getElementById('markerDropdown').innerHTML += `<option value="${marker.lat},${marker.lon}">${marker.name}</option>`;
+                })
+                .catch(error => console.error("Error fetching marker data:", error));
+        }
+
+        function moveToMarker() {
+            var dropdown = document.getElementById("markerDropdown");
+            var value = dropdown.value;
+            if (value) {
+                var coords = value.split(",").map(Number);
+                map.flyTo(coords, 14);
+            }
+        }
+
+        var markers = {{ markers|tojson }};
+        markers.forEach(createMarker);
+    </script>
+</body>
+</html>
+

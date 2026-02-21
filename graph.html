@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise and Light Monitoring in Real-time</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Global Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1e1e2e;
+            color: #f8f9fa;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+    color: #ffffff;
+    text-align: center;
+    font-size: 2.8rem;
+    text-shadow: 2px 2px 8px rgba(255, 255, 255, 0.3);
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+        }
+
+        /* Date Picker Styling */
+        .date-container {
+    background: linear-gradient(135deg, #252836, #2c2f3f);
+    padding: 15px 20px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease-in-out;
+        }
+        .date-container:hover {
+           transform: scale(1.02);
+        }
+
+        label {
+    font-size: 18px;
+    color: #ffcc00;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+        }
+
+        input {
+    padding: 12px;
+    border: 2px solid #ffcc00;
+    background: #1d1f27;
+    color: #f8f9fa;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.3s, background 0.3s;
+    font-size: 16px;
+        }
+
+        input:focus {
+    border-color: #ffaa00;
+    background: #292c3c;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
+        }
+       
+        input:hover {
+          border-color: #ffaa00;
+        }
+
+        /* Chart Containers */
+        .chart-container {
+            background: #2c2f3f;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            margin: 20px auto;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+       
+         .legend-container {
+            background: #2c2f3f;
+            padding: 20px;
+            width: 90%;
+            border-radius: 12px;
+            margin: 20px auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+       
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #fff;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #444;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* No Data Message */
+        .no-data-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Noise and Light Monitoring in Real-time</h1>
+   
+    <div class="date-container">
+        <label for="datePicker">Select Date:</label>
+        <input type="date" id="datePicker">
+    </div>
+
+    <div class="chart-container">
+        <canvas id="lightChart"></canvas>
+        <div id="noDataMessageLight" class="no-data-message">No data available</div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="loudnessChart"></canvas>
+        <div id="noDataMessageLoudness" class="no-data-message">No data available</div>
+    </div>
+   
+    <div class="legend-container">
+        <h2>Limit Values of Intrusive Light</h2>
+        <p>According to Regulation 539/2007 Coll. for daytime (6:00 - 22:00) and nighttime (22:00 - 6:00)</p>
+        <table>
+            <tr>
+                <th>Area</th>
+                <th>Maximum Vertical Illuminance (lux) - Daytime</th>
+                <th>Maximum Vertical Illuminance (lux) - Nighttime</th>
+            </tr>
+            <tr>
+                <td>Dark Sky Area (E1)</td>
+                <td>2.0</td>
+                <td>0.0</td>
+            </tr>
+            <tr>
+                <td>Rural and Residential Areas (E2)</td>
+                <td>5.0</td>
+                <td>1.0</td>
+            </tr>
+            <tr>
+                <td>Urban Areas (E3)</td>
+                <td>10.0</td>
+                <td>2.0</td>
+            </tr>
+            <tr>
+                <td>Large City Centers (E4)</td>
+                <td>25.0</td>
+                <td>5.0</td>
+            </tr>
+        </table>
+    </div>
+   
+    <div class="legend-container">
+        <h2>Permissible Noise Levels</h2>
+        <p>Permissible Noise Levels According to Decree No. 549/2007 Coll.</p>
+         <table>
+        <tr>
+            <th>Category of Area</th>
+            <th>Daytime (6:00 - 18:00)</th>
+            <th>Evening (18:00 - 22:00)</th>
+            <th>Nighttime (22:00 - 6:00)</th>
+        </tr>
+        <tr>
+            <td>Residential Zones (I)</td>
+            <td>50 dB</td>
+            <td>45 dB</td>
+            <td>40 dB</td>
+        </tr>
+        <tr>
+            <td>Mixed-use Areas (II)</td>
+            <td>55 dB</td>
+            <td>50 dB</td>
+            <td>45 dB</td>
+        </tr>
+        <tr>
+            <td>Industrial Areas (III)</td>
+            <td>65 dB</td>
+            <td>60 dB</td>
+            <td>55 dB</td>
+        </tr>
+        <tr>
+            <td>Healthcare Facilities, Spa Areas (IV)</td>
+            <td>45 dB</td>
+            <td>40 dB</td>
+            <td>35 dB</td>
+        </tr>
+    </table>
+    <p>These values may vary depending on the source of noise (traffic, industry, construction, etc.). For exact limits, please refer directly to Decree No. 549/2007 Coll.</p>
+    </div>
+   <script>
+        var markerId = "{{ marker_id }}";
+        var lightChart, loudnessChart;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            var datePicker = document.getElementById('datePicker');
+
+            // Set default date to today
+            var today = new Date();
+            var yyyy = today.getFullYear();
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var dd = String(today.getDate()).padStart(2, '0');
+            datePicker.value = `${yyyy}-${mm}-${dd}`;
+            datePicker.max = `${yyyy}-${mm}-${dd}`;
+
+            fetchData();
+        });
+                function fetchData() {
+            var selectedDate = document.getElementById('datePicker').value;
+           
+            if (!selectedDate) {
+                displayEmptyGraphs();
+                return;
+            }
+
+            fetch(`/historical/${markerId}?date=${selectedDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data === "No_data" || !data.timestamps || data.timestamps.length === 0) {
+                        displayEmptyGraphs();
+                    } else {
+                        updateGraph('lightChart', data.timestamps, data.light_intensity, 'Light Intensity', 'yellow', 'noDataMessageLight');
+                        updateLoudnessGraph('loudnessChart', data.timestamps, data.loudness, 'Loudness', 'noDataMessageLoudness');
+                    }
+                })
+                .catch(() => displayEmptyGraphs());
+        }
+       
+function updateGraph(canvasId, timestamps, dataPoints, label, borderColor, noDataMessageId) {
+var ctx = document.getElementById(canvasId).getContext('2d');
+if (canvasId === 'lightChart' && lightChart) lightChart.destroy();
+if (canvasId === 'loudnessChart' && loudnessChart) loudnessChart.destroy();
+document.getElementById(noDataMessageId).style.display = "none";
+var gradient = ctx.createLinearGradient(0, 0, 0, 400);
+gradient.addColorStop(0, "rgba(255, 46, 0, 1)"); // = 75 dB
+            gradient.addColorStop(0.4, "rgba(255, 152, 0, 1)"); // = 75 dB
+            gradient.addColorStop(0.9, "rgba(239, 239, 44, 1)"); // = 75 dB
+gradient.addColorStop(1, "rgba(255,255,255,1)"); // < 45 dB
+// Filter timestamps to only include data from 00:00-06:00 and 22:00-24:00
+let filteredData = timestamps.map((ts, index) => {
+let date = new Date(ts * 1000);
+let hours = date.getHours();
+if ((hours >= 0 && hours < 4) || (hours >= 22 && hours < 24)) {
+return { time: ts, value: dataPoints[index] };
+}
+return null;
+}).filter(item => item !== null);
+let filteredTimestamps = filteredData.map(item => item.time);
+let filteredDataPoints = filteredData.map(item => item.value);
+
+var chart = new Chart(ctx, {
+type: 'line',
+data: {
+labels: filteredTimestamps.map(ts => new Date(ts * 1000).toLocaleTimeString()),
+datasets: [{
+borderWidth: 0.8,
+label: label,
+data: filteredDataPoints,
+borderColor: gradient,
+fill: false,
+pointBackgroundColor: gradient,
+pointRadius: 1
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: true,
+aspectRatio: 2,
+scales: {
+x: { ticks: { color: "#f8f9fa" } },
+y: { ticks: { color: "#f8f9fa" } }
+},
+plugins: {
+legend: { labels: { color: "#f8f9fa" } }
+}
+}
+});
+
+            if (canvasId === 'lightChart') lightChart = chart;
+            if (canvasId === 'loudnessChart') loudnessChart = chart;
+        }
+       
+
+        function updateLoudnessGraph(canvasId, timestamps, dataPoints, label, noDataMessageId) {
+            var ctx = document.getElementById(canvasId).getContext('2d');
+            if (loudnessChart) loudnessChart.destroy();
+            document.getElementById(noDataMessageId).style.display = "none";
+
+            var gradient = ctx.createLinearGradient(0, 0, 0, 400);
+             gradient.addColorStop(0, "rgba(128,0,38,1)"); // = 75 dB
+gradient.addColorStop(0.14, "rgba(255,0,255,1)"); // 70-75 dB
+gradient.addColorStop(0.28, "rgba(255,0,0,1)"); // 65-70 dB
+gradient.addColorStop(0.42, "rgba(255,136,0,1)"); // 60-65 dB
+gradient.addColorStop(0.56, "rgba(255,255,0,1)"); // 55-60 dB
+gradient.addColorStop(0.7, "rgba(207,255,128,1"); // 50-55 dB
+gradient.addColorStop(0.84, "rgba(0,255,0,1)"); // 45-50 dB
+gradient.addColorStop(1, "rgba(0,128,0,1)"); // < 45 dB
+
+            loudnessChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps.map(ts => new Date(ts * 1000).toLocaleTimeString()),
+                    datasets: [{
+borderWidth:0.5,
+                        label: label,
+                        data: dataPoints,
+                        borderColor: gradient,
+                        fill: false,
+                        backgroundColor: gradient,
+                        pointRadius: 1
+                    }]
+                },
+                options: {
+	    responsive: true,
+	    maintainAspectRatio: false,
+	    scales: {
+		x: { ticks: { color: "#f8f9fa" } },
+		y: { ticks: { color: "#f8f9fa" } }
+	    	},
+	    plugins: { legend: { labels: { color: "#f8f9fa" } } }
+		}
+            });
+        }
+       
+       
+
+        function displayEmptyGraphs() {
+            updateGraph('lightChart', [], [], 'Light Intensity', 'yellow', 'noDataMessageLight');
+            updateLoudnessGraph('loudnessChart', [], [], 'Loudness', 'noDataMessageLoudness');
+        }
+
+        document.getElementById('datePicker').addEventListener('change', fetchData);
+    </script>
+</body>
+</html>
+
